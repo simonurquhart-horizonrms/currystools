@@ -20,13 +20,14 @@
     .linkline{display:flex;gap:8px}
     .linkline input{flex:1}
     .small{font-size:12px;color:var(--muted)}
+    .qr{margin-top:12px;display:flex;justify-content:center}
     details{margin-top:10px}
   </style>
 </head>
 <body>
   <div class="card">
     <h1>Currys SKU → Short Link + QR</h1>
-    <p>Enter a SKU. This builds a DuckDuckGo <code>!ducky</code> direct link to <code>currys.co.uk/products</code>, shortens it with TinyURL, and gives you a QR.</p>
+    <p>Enter a SKU. This builds a DuckDuckGo <code>!ducky</code> direct link to <code>currys.co.uk/products</code>, shortens it with TinyURL, and shows a QR code.</p>
 
     <form id="f">
       <input id="sku" type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 512013" autofocus />
@@ -41,7 +42,7 @@
           <button type="button" data-copy="#shortUrl">Copy</button>
           <a id="openShort" target="_blank" rel="noopener"><button type="button">Open</button></a>
         </div>
-        <div class="small" style="margin-top:8px">QR code link: <a id="qrLink" target="_blank" rel="noopener">Open QR</a></div>
+        <div class="qr"><img id="qrImg" alt="QR Code" /></div>
       </div>
 
       <details>
@@ -57,7 +58,6 @@
           <div class="linkline">
             <input id="rawUrl" type="text" readonly>
             <button type="button" data-copy="#rawUrl">Copy</button>
-            <a id="openRaw" target="_blank" rel="noopener"><button type="button">Open</button></a>
           </div>
           <div class="small" style="margin-top:8px">Includes <code>!ducky</code> and excludes Currys Business.</div>
         </div>
@@ -72,10 +72,9 @@
 
     const shortUrl = document.getElementById('shortUrl');
     const openShort = document.getElementById('openShort');
-    const qrLink = document.getElementById('qrLink');
+    const qrImg = document.getElementById('qrImg');
 
     const rawUrl = document.getElementById('rawUrl');
-    const openRaw = document.getElementById('openRaw');
 
     const bm = document.getElementById('bm');
 
@@ -104,12 +103,11 @@
 
     async function updateUI(target){
       rawUrl.value = target;
-      openRaw.href = target;
 
       const short = await shorten(target);
       shortUrl.value = short;
       openShort.href = short;
-      qrLink.href = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(short)}`;
+      qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(short)}`;
 
       out.style.display = 'block';
     }
