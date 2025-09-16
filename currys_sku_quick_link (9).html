@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Currys SKU QuickLink</title>
+  <style>
+    :root{--bg:#fafafa;--fg:#111;--muted:#666;--border:#d0d7de}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;background:var(--bg)}
+    .card{background:white;padding:24px 20px;border-radius:16px;box-shadow:0 6px 24px rgba(0,0,0,.08);width:min(760px,94vw)}
+    h1{font-size:20px;margin:0 0 8px}
+    p{margin:0 0 12px;color:#444}
+    form{display:flex;gap:8px}
+    input[type=text]{flex:1;padding:12px 14px;border-radius:12px;border:1px solid var(--border);font-size:16px}
+    button{padding:12px 16px;border-radius:12px;border:0;background:var(--fg);color:#fff;font-size:16px;cursor:pointer}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    .box{border:1px solid var(--border);border-radius:12px;padding:12px;margin-top:16px}
+    .label{font-size:12px;color:var(--muted);margin-bottom:6px}
+    .linkline{display:flex;gap:8px}
+    .linkline input{flex:1}
+    .small{font-size:12px;color:var(--muted)}
+    details{margin-top:10px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Currys SKU → Link Preview</h1>
+    <p>Enter a SKU. This generates a shortened direct product link with QR.</p>
+
+    <form id="f">
+      <input id="sku" type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 512013" autofocus />
+      <button id="go" type="submit">Generate</button>
+    </form>
+
+    <div id="out" style="display:none">
+      <div class="box">
+        <div class="label">Shortened direct product result</div>
+        <div class="linkline">
+          <input id="aUrl" type="text" readonly>
+          <button type="button" data-copy="#aUrl">Copy</button>
+          <a id="aOpen" target="_blank" rel="noopener" class="small"><button type="button">Open</button></a>
+        </div>
+        <div class="small" style="margin-top:8px">Link is shortened via TinyURL and points to the DuckDuckGo result. QR code uses the shortened link.</div>
+        <div class="small" style="margin-top:8px">QR code link: <a id="aQR" target="_blank" rel="noopener">Open QR</a></div>
+      </div>
+
+      <details>
+        <summary>Bookmarklet</summary>
+        <p>Drag to your bookmarks bar. Prompts for a SKU then opens via shortened link.</p>
+        <p><a id="bm" href="#">Currys SKU → Product</a></p>
+      </details>
+    </div>
+  </div>
+
+  <script>
+    const f = document.getElementById('f');
+    const skuInput = document.getElementById('sku');
+    const out = document.getElementById('out');
+
+    const aUrl = document.getElementById('aUrl');
+    const aOpen = document.getElementById('aOpen');
+    const aQR = document.getElementById('aQR');
+
+    const bm = document.getElementById('bm');
+
+    async function shorten(url){
+      const api = `https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`;
+      try {
+        const res = await fetch(api);
+        const txt = await res.text();
+        return txt.startsWith('http') ? txt : url;
+      } catch(e){
+        return url;
+      }
+    }
+
+    function buildLink(sku){
+      const clean = (sku||'').trim();
+      if(!clean) return null;
+      return `https://duckduckgo.com/?q=!ducky+site%3Acurrys.co.uk%2Fproducts+${encodeURIComponent(clean)}+-site%3Abusiness.currys.co.uk+-site%3Acurrysbusiness.co.uk`;
+    }
+
+    function setBookmarklet(){
+      const code = "javascript:(async function(){var s=prompt('Currys SKU?');if(!s)return;var u='https://duckduckgo.com/?q=!ducky+site%3Acurrys.co.uk%2Fproducts+'+encodeURIComponent(s)+'+-site%3Abusiness.currys.co.uk+-site%3Acurrysbusiness.co.uk';window.open('https://tinyurl.com/api-create.php?url='+encodeURIComponent(u));})();";
+      bm.href = code;
+    }
+
+    async function updateUI(ddg){
+      const shortLink = await shorten(ddg);
+      aUrl.value = shortLink;
+      aOpen.href = shortLink;
+      aQR.href = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shortLink)}`;
+      out.style.display = 'block';
+    }
+
+    function copySel(selector){
+      const el = document.querySelector(selector);
+      el.select();
+      el.setSelectionRange(0, 99999);
+      try{document.execCommand('copy');}catch(e){
+        navigator.clipboard && navigator.clipboard.writeText(el.value);
+      }
+    }
+
+    document.addEventListener('click', (e)=>{
+      const btn = e.target.closest('[data-copy]');
+      if(btn){
+        copySel(btn.getAttribute('data-copy'));
+        btn.textContent = 'Copied';
+        setTimeout(()=>btn.textContent='Copy', 1200);
+      }
+    });
+
+    f.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const sku = skuInput.value;
+      const ddg = buildLink(sku);
+      if(!ddg) return;
+      await updateUI(ddg);
+    });
+
+    setBookmarklet();
+  </script>
+</body>
+</html>
