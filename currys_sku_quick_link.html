@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Currys SKU QuickLink</title>
+  <title>Currys SKU Quick Link</title>
   <style>
     :root{--bg:#fafafa;--fg:#111;--muted:#666;--border:#d0d7de}
     *{box-sizing:border-box}
@@ -25,8 +25,8 @@
 </head>
 <body>
   <div class="card">
-    <h1>Currys SKU → Link Preview</h1>
-    <p>Enter a SKU. This generates a shortened direct product link with QR.</p>
+    <h1>Currys SKU → Short Link + QR</h1>
+    <p>Enter a SKU. This builds a DuckDuckGo <code>!ducky</code> direct link to <code>currys.co.uk/products</code>, shortens it with TinyURL, and gives you a QR.</p>
 
     <form id="f">
       <input id="sku" type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 512013" autofocus />
@@ -35,20 +35,32 @@
 
     <div id="out" style="display:none">
       <div class="box">
-        <div class="label">Shortened direct product result</div>
+        <div class="label">Shortened direct product link</div>
         <div class="linkline">
-          <input id="aUrl" type="text" readonly>
-          <button type="button" data-copy="#aUrl">Copy</button>
-          <a id="aOpen" target="_blank" rel="noopener" class="small"><button type="button">Open</button></a>
+          <input id="shortUrl" type="text" readonly>
+          <button type="button" data-copy="#shortUrl">Copy</button>
+          <a id="openShort" target="_blank" rel="noopener"><button type="button">Open</button></a>
         </div>
-        <div class="small" style="margin-top:8px">Link is shortened via TinyURL and points to the DuckDuckGo result. QR code uses the shortened link.</div>
-        <div class="small" style="margin-top:8px">QR code link: <a id="aQR" target="_blank" rel="noopener">Open QR</a></div>
+        <div class="small" style="margin-top:8px">QR code link: <a id="qrLink" target="_blank" rel="noopener">Open QR</a></div>
       </div>
 
       <details>
         <summary>Bookmarklet</summary>
-        <p>Drag to your bookmarks bar. Prompts for a SKU then opens via shortened link.</p>
-        <p><a id="bm" href="#">Currys SKU → Product</a></p>
+        <p>Drag to bookmarks. Prompts for a SKU, then creates a TinyURL to the direct product result.</p>
+        <p><a id="bm" href="#">Currys SKU → Short Link</a></p>
+      </details>
+
+      <details>
+        <summary>Show underlying target (for debugging)</summary>
+        <div class="box">
+          <div class="label">Raw target URL used for shortening</div>
+          <div class="linkline">
+            <input id="rawUrl" type="text" readonly>
+            <button type="button" data-copy="#rawUrl">Copy</button>
+            <a id="openRaw" target="_blank" rel="noopener"><button type="button">Open</button></a>
+          </div>
+          <div class="small" style="margin-top:8px">Includes <code>!ducky</code> and excludes Currys Business.</div>
+        </div>
       </details>
     </div>
   </div>
@@ -58,39 +70,47 @@
     const skuInput = document.getElementById('sku');
     const out = document.getElementById('out');
 
-    const aUrl = document.getElementById('aUrl');
-    const aOpen = document.getElementById('aOpen');
-    const aQR = document.getElementById('aQR');
+    const shortUrl = document.getElementById('shortUrl');
+    const openShort = document.getElementById('openShort');
+    const qrLink = document.getElementById('qrLink');
+
+    const rawUrl = document.getElementById('rawUrl');
+    const openRaw = document.getElementById('openRaw');
 
     const bm = document.getElementById('bm');
 
-    async function shorten(url){
-      const api = `https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`;
-      try {
-        const res = await fetch(api);
-        const txt = await res.text();
-        return txt.startsWith('http') ? txt : url;
-      } catch(e){
-        return url;
-      }
-    }
-
-    function buildLink(sku){
+    function buildTarget(sku){
       const clean = (sku||'').trim();
       if(!clean) return null;
+      // Force direct jump to product page using !ducky. Filter Business.
       return `https://duckduckgo.com/?q=!ducky+site%3Acurrys.co.uk%2Fproducts+${encodeURIComponent(clean)}+-site%3Abusiness.currys.co.uk+-site%3Acurrysbusiness.co.uk`;
     }
 
+    async function shorten(url){
+      const api = `https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`;
+      try{
+        const res = await fetch(api, { mode: 'cors' });
+        const txt = await res.text();
+        return txt.startsWith('http') ? txt : url; // fallback to raw if shortening fails
+      }catch(e){
+        return url; // fallback
+      }
+    }
+
     function setBookmarklet(){
-      const code = "javascript:(async function(){var s=prompt('Currys SKU?');if(!s)return;var u='https://duckduckgo.com/?q=!ducky+site%3Acurrys.co.uk%2Fproducts+'+encodeURIComponent(s)+'+-site%3Abusiness.currys.co.uk+-site%3Acurrysbusiness.co.uk';window.open('https://tinyurl.com/api-create.php?url='+encodeURIComponent(u));})();";
+      const code = "javascript:(async function(){var s=prompt('Currys SKU?');if(!s)return;var u='https://duckduckgo.com/?q=!ducky+site%3Acurrys.co.uk%2Fproducts+'+encodeURIComponent(s)+'+-site%3Abusiness.currys.co.uk+-site%3Acurrysbusiness.co.uk';var a='https://tinyurl.com/api-create.php?url='+encodeURIComponent(u);try{var r=await fetch(a);var t=await r.text();location.href=(t.indexOf('http')===0?t:u);}catch(e){location.href=u;}})();";
       bm.href = code;
     }
 
-    async function updateUI(ddg){
-      const shortLink = await shorten(ddg);
-      aUrl.value = shortLink;
-      aOpen.href = shortLink;
-      aQR.href = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shortLink)}`;
+    async function updateUI(target){
+      rawUrl.value = target;
+      openRaw.href = target;
+
+      const short = await shorten(target);
+      shortUrl.value = short;
+      openShort.href = short;
+      qrLink.href = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(short)}`;
+
       out.style.display = 'block';
     }
 
@@ -115,9 +135,9 @@
     f.addEventListener('submit', async (e)=>{
       e.preventDefault();
       const sku = skuInput.value;
-      const ddg = buildLink(sku);
-      if(!ddg) return;
-      await updateUI(ddg);
+      const target = buildTarget(sku);
+      if(!target) return;
+      await updateUI(target);
     });
 
     setBookmarklet();
